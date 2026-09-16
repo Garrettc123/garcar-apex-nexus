@@ -1,0 +1,26 @@
+name: Canary Mesh Verification
+
+on:
+  pull_request:
+    paths:
+      - 'canary-mesh/**'
+      - '.github/workflows/canary-mesh-verify.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run deterministic canary controller tests
+        run: node --experimental-strip-types --test canary-mesh/test/controller.test.ts
+      - name: Assert live provider actions remain disabled in policy
+        run: |
+          node -e "const p=require('./canary-mesh/config/canary-policy.json'); if(p.providerPolicy.stripe.allowLiveMoneyMovement !== false) process.exit(1); if(p.providerPolicy.linkedin.mode !== 'dry-run') process.exit(1); if(p.providerPolicy.gmail.mode !== 'allowlisted-test-recipient') process.exit(1);"
